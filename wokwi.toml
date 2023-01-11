@@ -1,0 +1,5 @@
+
+[wokwi]
+version = 1
+elf = "target/xtensa-esp32-none-elf/release/lilygo_t5"
+firmware = "target/xtensa-esp32-none-elf/release/lilygo_t5"
