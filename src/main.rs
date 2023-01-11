@@ -108,10 +108,32 @@ fn main() -> ! {
         delay.delay_ms(10u32);
     }
 
-    // case 0x03: // x increase, y increase : normal mode
-    //     _SetRamArea(0x00, xPixelsPar / 8, 0x00, 0x00, yPixelsPar % 256, yPixelsPar / 256);  // X-source area,Y-gate area
-    //     _SetRamPointer(0x00, 0x00, 0x00); // set ram
-    //     break;
+    // _writeCommand(0x74); //set analog block control
+    // _writeData(0x54);
+    // _writeCommand(0x7E); //set digital block control
+    // _writeData(0x3B);
+    // _writeCommand(0x01); //Driver output control
+    // _writeData(0xF9);    // (HEIGHT - 1) % 256
+    // _writeData(0x00);    // (HEIGHT - 1) / 256
+    // _writeData(0x00);
+    // _writeCommand(0x3C); //BorderWavefrom
+    // _writeData(0x03);
+    // _writeCommand(0x2C); //VCOM Voltage
+    // _writeData(0x70);    // NA ??
+    // _writeCommand(0x03); //Gate Driving voltage Control
+    // _writeData(0x15);    // 19V
+    // _writeCommand(0x04); //Source Driving voltage Control
+    // _writeData(0x41);    // VSH1 15V
+    // _writeData(0xA8);    // VSH2 5V
+    // _writeData(0x32);    // VSL -15V
+    // _writeCommand(0x3A); //Dummy Line
+    // _writeData(0x30);
+    // _writeCommand(0x3B); //Gate time
+    // _writeData(0x0A);
+    // _setRamDataEntryMode(em);
+
+    let write = [0x74, 0x54, 0x7E, 0x3B, 0x01, 0xF9, 0x00, 0x00, 0x3C, 0x03, 0x2C, 0x70, 0x03, 0x15, 0x04, 0x41, 0xA8, 0x32, 0x3A, 0x30, 0x3B, 0x0A];
+    eink_device.transfer(&mut read[..], &write[..]).unwrap();
 
     println!("_setRamDataEntryMode");
     // _setRamDataEntryMode
@@ -178,6 +200,41 @@ let write = [0x4e, 0x01, 0x4f, 0x00, 0x00];
     //     _PowerOff();
     // }
     
+    //  _writeCommand(0x32);
+//   _writeData(LUT_DATA_full, sizeof(LUT_DATA_full));
+//   _PowerOn();
+    let write = [0x32];
+    eink_device.transfer(&mut read[..], &write[..]).unwrap();
+
+    println!("LUT Data");
+    let write:[u8;70]=
+[
+  0x80, 0x60, 0x40, 0x00, 0x00, 0x00, 0x00, //LUT0: BB:     VS 0 ~7
+  0x10, 0x60, 0x20, 0x00, 0x00, 0x00, 0x00, //LUT1: BW:     VS 0 ~7
+  0x80, 0x60, 0x40, 0x00, 0x00, 0x00, 0x00, //LUT2: WB:     VS 0 ~7
+  0x10, 0x60, 0x20, 0x00, 0x00, 0x00, 0x00, //LUT3: WW:     VS 0 ~7
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //LUT4: VCOM:   VS 0 ~7
+  0x03, 0x03, 0x00, 0x00, 0x02, // TP0 A~D RP0
+  0x09, 0x09, 0x00, 0x00, 0x02, // TP1 A~D RP1
+  0x03, 0x03, 0x00, 0x00, 0x02, // TP2 A~D RP2
+  0x00, 0x00, 0x00, 0x00, 0x00, // TP3 A~D RP3
+  0x00, 0x00, 0x00, 0x00, 0x00, // TP4 A~D RP4
+  0x00, 0x00, 0x00, 0x00, 0x00, // TP5 A~D RP5
+  0x00, 0x00, 0x00, 0x00, 0x00, // TP6 A~D RP6
+];
+    eink_device.transfer(&mut read[..], &write[..]).unwrap();
+
+    println!("Power On");
+    // _writeCommand(0x22);
+    // _writeData(0xc0);
+    // _writeCommand(0x20);
+    let write = [0x22, 0xc0, 0x20];
+    eink_device.transfer(&mut read[..], &write[..]).unwrap();
+    while busy.is_high().unwrap() {
+        delay.delay_ms(100u32);
+    }
+
+
     println!("update");
     // spi.write(&[0x24]).unwrap();
     let write = [0x24];
@@ -186,14 +243,19 @@ let write = [0x4e, 0x01, 0x4f, 0x00, 0x00];
     let write = &[0xff;212*104];
     eink_device.transfer(&mut read[..], &write[..]).unwrap();
 
+    // let write = [0x26];
+    // eink_device.transfer(&mut read[..], &write[..]).unwrap();
+
 
 
 //     void GxDEPG0213BN::_Update_Full(void)
 // {
-//     _writeCommand(0x20);
+//     _writeCommand(0x22);
+//     _writeData(0xc4);
+// //     _writeCommand(0x20);
 //     _waitWhileBusy("_Update_Full", full_refresh_time);
 // }
-let write = [0x20];
+let write = [0x22, 0xc4, 0x20];
 eink_device.transfer(&mut read[..], &write[..]).unwrap();
 
 println!("Wait for operation to finish");
@@ -202,7 +264,7 @@ println!("Wait for operation to finish");
         delay.delay_ms(100u32);
     }
 
-    println!("Done");
+    println!("Power off");
     // let mut epd = Epd2in13::new(&mut spi, cs.into_push_pull_output(), busy, dc, rst, &mut delay).unwrap();
     // let mut display = Display2in13::default();
     // display.set_rotation(DisplayRotation::Rotate90);
@@ -210,5 +272,17 @@ println!("Wait for operation to finish");
     // draw_text(&mut display, " Hello Rust from ESP32! ", 15, 50);
     // epd.update_and_display_frame(&mut spi, display.buffer(), &mut delay).expect("Frame cannot be cleared and updated!");
 
+//  _writeCommand(0x22);
+// _writeData(0xc3);
+// _writeCommand(0x20);
+// _waitWhileBusy("_PowerOff");
+
+    let write = [0x22, 0xc3, 0x20];
+    eink_device.transfer(&mut read[..], &write[..]).unwrap();
+    while busy.is_high().unwrap() {
+        delay.delay_ms(100u32);
+    }
+
+    println!("Done");
     loop {}
 }
