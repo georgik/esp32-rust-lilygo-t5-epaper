@@ -69,18 +69,20 @@ fn main() -> ! {
 // #define _HAS_SDCARD_
     delay.delay_ms(10u32);
 
-    let miso = io.pins.gpio2.into_floating_input();
-    let cs = io.pins.gpio5.into_push_pull_output();
-    let mut rst = io.pins.gpio16.into_push_pull_output();
     let busy = io.pins.gpio4.into_floating_input();
+    let mut rst = io.pins.gpio16.into_push_pull_output();
+    let mosi = io.pins.gpio23.into_push_pull_output();
+    let miso = io.pins.gpio19.into_floating_input();
+    let mut sck = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
+    let cs = io.pins.gpio5.into_push_pull_output();
 
     // let mut spi = spi::Spi::new_no_cs_no_miso(
     let spi_controller = SpiBusController::from_spi(Spi::new_no_cs(
         peripherals.SPI3, // Real HW working with SPI2, but Wokwi seems to work only with SPI3
+        sck,
+        mosi,
         miso,
-        io.pins.gpio18,   // SCLK
-        io.pins.gpio23,   // MOSI
         4u32.MHz(),
         SpiMode::Mode0,
         &mut system.peripheral_clock_control,
