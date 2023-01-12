@@ -93,14 +93,14 @@ fn main() -> ! {
     let mut epd = Epd2in13bc::new( & mut spi, cs, busy, dc, rst, & mut delay, None).unwrap();
     let mut display = Display2in13bc::default ();
     println!("Clear");
-    display.clear(TriColor::White).ok();
-    println!("Draw");
-    draw_text(&mut display, "Rotate 0!", 5, 50);
-    // display.clear(Color::White).ok();
-        // Transfer the frame data to the epd and display it
-    println!("Update");
-        epd.update_and_display_frame( & mut spi, & display.buffer(), &mut delay).unwrap();
-println!("Done");
+    display.clear(TriColor::Black).ok();
+//     println!("Draw");
+//     draw_text(&mut display, "Rotate 0!", 5, 50);
+//     // display.clear(Color::White).ok();
+//         // Transfer the frame data to the epd and display it
+//     println!("Update");
+//         epd.update_and_display_frame( & mut spi, & display.buffer(), &mut delay).unwrap();
+// println!("Done");
     
     // println!("Setup");
     // rst.set_low().unwrap();
