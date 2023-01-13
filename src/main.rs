@@ -13,6 +13,7 @@ use esp_println::println;
 use epd_waveshare::graphics::Display;
 use epd_waveshare::{
     color::*,
+    graphics::DisplayRotation,
 };
 use epd_waveshare::epd2in13bc::{Display2in13bc, Epd2in13bc};
 use epd_waveshare::prelude::WaveshareDisplay;
@@ -20,8 +21,8 @@ use epd_waveshare::prelude::WaveshareDisplay;
 fn draw_text(display: &mut Display2in13bc, text: &str, x: i32, y: i32) {
     let style = MonoTextStyleBuilder::new()
         .font(&embedded_graphics::mono_font::ascii::FONT_6X10)
-        .text_color(TriColor::Black)
-        .background_color(TriColor::White)
+        .text_color(Color::Black)
+        .background_color(Color::White)
         .build();
 
     let text_style = TextStyleBuilder::new().baseline(Baseline::Top).build();
@@ -93,16 +94,18 @@ fn main() -> ! {
     );
     println!("Init");
     let mut epd = Epd2in13bc::new( & mut spi, cs, busy, dc, rst, & mut delay, None).unwrap();
-    let mut display = Display2in13bc::default ();
+    let mut display = Display2in13bc::default();
+    display.set_rotation(DisplayRotation::Rotate0);
+    
     println!("Clear");
-    // display.clear(TriColor::Black).ok();
+    display.clear(Color::White).ok();
 //     println!("Draw");
-//     draw_text(&mut display, "Rotate 0!", 5, 50);
+    draw_text(&mut display, "Hello Espressif!", 5, 50);
 //     // display.clear(Color::White).ok();
 //         // Transfer the frame data to the epd and display it
-//     println!("Update");
-//         epd.update_and_display_frame( & mut spi, & display.buffer(), &mut delay).unwrap();
-// println!("Done");
+    println!("Update");
+    epd.update_and_display_frame( & mut spi, & display.buffer(), &mut delay).unwrap();
+    println!("Done");
     
     // println!("Setup");
     // rst.set_low().unwrap();
