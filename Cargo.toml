@@ -11,8 +11,8 @@ esp-backtrace = { version = "0.4.0", features = ["esp32", "panic-handler", "prin
 xtensa-lx-rt = { version = "0.14.0", features = ["esp32"], optional = true }
 esp-println = { version = "0.3.1", features = ["esp32"] }
 embedded-hal-1     = { version = "=1.0.0-alpha.9", package = "embedded-hal" }
-epd-waveshare = { path = "../epd-waveshare", version = "*" }
-# epd-waveshare = { git = "https://github.com/georgik/epd-waveshare.git", branch = "experimental/lilogo-t5" }
+# epd-waveshare = { path = "../epd-waveshare", version = "*" }
+epd-waveshare = { git = "https://github.com/georgik/epd-waveshare.git", branch = "experimental/lilogo-t5" }
 embedded-graphics = "0.7.1"
 
 [features]
