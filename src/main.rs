@@ -57,6 +57,8 @@ fn main() -> ! {
     // https://github.com/Xinyuan-LilyGO/LilyGo-T5-Epaper-Series/blob/master/lib/GxEPD/src/boards.h
     // C++ implementation
     // https://github.com/Xinyuan-LilyGO/LilyGo-T5-Epaper-Series/blob/master/lib/GxEPD/src/GxGDEH0213B72/GxGDEH0213B72.cpp
+    // Python implementation
+    // https://github.com/Inqbus/micropython_DEPG0213BN/blob/main/DEPG0213BN.py
 
     delay.delay_ms(10u32);
 
@@ -93,7 +95,7 @@ fn main() -> ! {
     let mut epd = Epd2in13bc::new( & mut spi, cs, busy, dc, rst, & mut delay, None).unwrap();
     let mut display = Display2in13bc::default ();
     println!("Clear");
-    display.clear(TriColor::Black).ok();
+    // display.clear(TriColor::Black).ok();
 //     println!("Draw");
 //     draw_text(&mut display, "Rotate 0!", 5, 50);
 //     // display.clear(Color::White).ok();
