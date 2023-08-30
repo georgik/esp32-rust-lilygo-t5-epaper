@@ -119,7 +119,7 @@ fn main() -> ! {
     ssd1680.clear_bw_frame(&mut spi).unwrap();
     let mut display_bw = Display2in13::bw();
 
-    draw_text(&mut display_bw, "Hello Tomas!", 25, 25);
+    draw_text(&mut display_bw, "Hello ESP-RS!", 25, 25);
     println!("Hello ESP-RS!");
 
     ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
