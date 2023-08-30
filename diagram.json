@@ -1,51 +1,34 @@
 {
     "version": 1,
-    "author": "Sergio Gasquez Arcos",
     "editor": "wokwi",
+    "author": "Juraj Michalek <juraj.michalek@gmail.com>",
     "parts": [
-      {
-        "type": "wokwi-esp32-devkit-v1",
-        "id": "esp",
-        "top": -108.67,
-        "left": -112.66,
-        "attrs": { "builder": "rust-nostd-esp" }
-      },
-      {
-        "type": "wokwi-resistor",
-        "id": "r1",
-        "top": 110.58,
-        "left": 123.26,
-        "attrs": { "value": "1000" }
-      },
-      {
-        "type": "wokwi-led",
-        "id": "led1",
-        "top": 54.07,
-        "left": 174.99,
-        "attrs": { "color": "red", "flip": "1" }
-      },
-      {
-        "type": "wokwi-logic-analyzer",
-        "id": "logic1",
-        "top": -133.65,
-        "left": 132.67,
-        "attrs": {}
-      },
-      { "type": "wokwi-ili9341", "id": "lcd1", "top": -162.53, "left": 302.1, "attrs": {} }
+        {
+            "type": "board-esp32-devkit-v1",
+            "id": "esp",
+            "top": 0.59,
+            "left": 0.67,
+            "attrs": {
+                "flashSize": "16"
+            }
+        }
     ],
     "connections": [
-      [ "esp:TX0", "$serialMonitor:RX", "", [] ],
-      [ "esp:RX0", "$serialMonitor:TX", "", [] ],
-      [ "esp:GND.1", "led1:C", "black", [ "h0" ] ],
-      [ "led1:A", "r1:2", "green", [ "v0" ] ],
-      [ "esp:D4", "r1:1", "green", [ "h0" ] ],
-      [ "esp:D23", "logic1:D2", "green", [ "h0" ] ],
-      [ "esp:D18", "logic1:D0", "green", [ "h0" ] ],
-      [ "esp:D5", "logic1:D3", "green", [ "h0" ] ],
-      [ "lcd1:CS", "esp:D5", "green", [ "v0" ] ],
-      [ "lcd1:MOSI", "esp:D23", "green", [ "v0" ] ],
-      [ "lcd1:SCK", "esp:D18", "green", [ "v0" ] ]
+        [
+            "esp:TX0",
+            "$serialMonitor:RX",
+            "",
+            []
+        ],
+        [
+            "esp:RX0",
+            "$serialMonitor:TX",
+            "",
+            []
+        ]
     ],
-    "serialMonitor": { "display": "terminal" },
-    "dependencies": {}
-  }
+    "serialMonitor": {
+        "display": "terminal",
+        "convertEol": true
+    }
+}

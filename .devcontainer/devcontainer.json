@@ -1,7 +1,7 @@
 {
-  "name": "lilygo_t5",
+  "name": "lily_go_t5_rs",
   // Select between image and build propieties to pull or build the image.
-  // "image": "docker.io/espressif/idf-rust:esp32_1.64.0.0",
+  // "image": "docker.io/espressif/idf-rust:esp32_latest",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {
@@ -10,35 +10,39 @@
       "ESP_BOARD": "esp32"
     }
   },
-  "settings": {
-    "editor.formatOnPaste": true,
-    "editor.formatOnSave": true,
-    "editor.formatOnSaveMode": "file",
-    "editor.formatOnType": true,
-    "lldb.executable": "/usr/bin/lldb",
-    "files.watcherExclude": {
-      "**/target/**": true
-    },
-    "rust-analyzer.checkOnSave.command": "clippy",
-    "rust-analyzer.checkOnSave.allTargets": false,
-    "[rust]": {
-      "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnPaste": true,
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file",
+        "editor.formatOnType": true,
+        "lldb.executable": "/usr/bin/lldb",
+        "files.watcherExclude": {
+          "**/target/**": true
+        },
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "rust-analyzer.checkOnSave.allTargets": false,
+        "[rust]": {
+          "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        }
+      },
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "serayuzgur.crates",
+        "mutantdino.resourcemonitor",
+        "yzhang.markdown-all-in-one",
+        "ms-vscode.cpptools",
+        "actboy168.tasks",
+        "Wokwi.wokwi-vscode"
+      ]
     }
   },
-  "extensions": [
-    "rust-lang.rust-analyzer",
-    "tamasfe.even-better-toml",
-    "serayuzgur.crates",
-    "mutantdino.resourcemonitor",
-    "yzhang.markdown-all-in-one",
-    "webfreak.debug",
-    "actboy168.tasks"
-  ],
   "forwardPorts": [
-    9012,
-    9333,
-    8000
+    8000,
+    3333
   ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/home/esp/lilygo_t5,type=bind,consistency=cached",
-  "workspaceFolder": "/home/esp/lilygo_t5"
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/esp/lily_go_t5_rs,type=bind,consistency=cached",
+  "workspaceFolder": "/home/esp/lily_go_t5_rs"
 }

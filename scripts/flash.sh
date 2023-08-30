@@ -18,6 +18,4 @@ case "$1" in
     ;;
 esac
 
-export ESP_ARCH=xtensa-esp32-none-elf
-
-web-flash --chip esp32 target/${ESP_ARCH}/${BUILD_MODE}/lilygo_t5
+web-flash --chip esp32 target/xtensa-esp32-none-elf/${BUILD_MODE}/lily_go_t5_rs
