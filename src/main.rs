@@ -125,13 +125,14 @@ fn main() -> ! {
     // Create an SPI interface and pins
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let mut delay = Delay::new(&clocks);
+
     let busy = io.pins.gpio4.into_floating_input();
-    let mut rst = io.pins.gpio16.into_push_pull_output();
+    let rst = io.pins.gpio16.into_push_pull_output();
     let mosi = io.pins.gpio23.into_push_pull_output();
-    let miso = io.pins.gpio19.into_floating_input();
-    let mut sclk = io.pins.gpio18.into_push_pull_output();
+    // let miso = io.pins.gpio19.into_floating_input();
+    let sclk = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
-    let mut cs = io.pins.gpio5.into_push_pull_output();
+    let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
     let mut spi = spi::Spi::new_no_cs_no_miso(

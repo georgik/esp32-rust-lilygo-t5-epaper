@@ -1,34 +1,29 @@
 {
     "version": 1,
+    "author": "Juraj Michálek",
     "editor": "wokwi",
-    "author": "Juraj Michalek <juraj.michalek@gmail.com>",
     "parts": [
-        {
-            "type": "board-esp32-devkit-v1",
-            "id": "esp",
-            "top": 0.59,
-            "left": 0.67,
-            "attrs": {
-                "flashSize": "16"
-            }
-        }
+      {
+        "type": "wokwi-esp32-devkit-v1",
+        "id": "esp",
+        "top": 83.34,
+        "left": -173.34,
+        "attrs": { "builder": "rust-nostd-esp" }
+      },
+      { "type": "board-epaper-2in9", "id": "epd1", "top": -65.14, "left": -50.72, "attrs": {} }
     ],
     "connections": [
-        [
-            "esp:TX0",
-            "$serialMonitor:RX",
-            "",
-            []
-        ],
-        [
-            "esp:RX0",
-            "$serialMonitor:TX",
-            "",
-            []
-        ]
+      [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+      [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+      [ "epd1:BUSY", "esp:D4", "green", [ "h0" ] ],
+      [ "epd1:RST", "esp:RX2", "green", [ "h0" ] ],
+      [ "epd1:DIN", "esp:D23", "green", [ "h0" ] ],
+      [ "epd1:CLK", "esp:D18", "green", [ "h0" ] ],
+      [ "epd1:DC", "esp:TX2", "green", [ "h0" ] ],
+      [ "epd1:CS", "esp:D5", "green", [ "h0" ] ],
+      [ "epd1:VCC", "esp:3V3", "red", [ "h0" ] ],
+      [ "epd1:GND", "esp:GND.1", "black", [ "h0" ] ]
     ],
-    "serialMonitor": {
-        "display": "terminal",
-        "convertEol": true
-    }
-}
+    "serialMonitor": { "display": "terminal", "convertEol": true },
+    "dependencies": {}
+  }
