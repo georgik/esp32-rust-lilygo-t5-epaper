@@ -1,7 +1,8 @@
 #![no_std]
 #![no_main]
 
-// extern crate alloc;
+extern crate alloc;
+use core::mem::MaybeUninit;
 
 use hal::{psram, prelude::*, peripherals::Peripherals, spi, timer::TimerGroup, clock::{ClockControl, CpuClock}, Delay, Rtc, Rng, IO};
 
@@ -32,7 +33,7 @@ use smoltcp::wire::Ipv4Address;
 
 
 use embedded_graphics::{
-    fonts::{Font6x8, Text},
+    fonts::{Font24x32, Text},
     prelude::*,
     style::PrimitiveStyle,
     text_style,
@@ -45,30 +46,22 @@ const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
 
 
-// #[global_allocator]
-// static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
+#[global_allocator]
+static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
 
-// fn init_heap() {
-//     const HEAP_SIZE: usize = 32 * 1024;
-//     extern "C" {
-//         static mut _heap_start: u32;
-//         static mut _heap_end: u32;
-//     }
-//     unsafe {
-//         let heap_start = &_heap_start as *const _ as usize;
-//         let heap_end = &_heap_end as *const _ as usize;
-//         assert!(
-//             heap_end - heap_start > HEAP_SIZE,
-//             "Not enough available heap memory."
-//         );
-//         ALLOCATOR.init(heap_start as *mut u8, HEAP_SIZE);
-//     }
-// }
+fn init_heap() {
+    const HEAP_SIZE: usize = 32 * 1024;
+    static mut HEAP: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+
+    unsafe {
+        ALLOCATOR.init(HEAP.as_mut_ptr() as *mut u8, HEAP_SIZE);
+    }
+}
 
 fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
     let _ = Text::new(text, Point::new(x, y))
         .into_styled(text_style!(
-            font = Font6x8,
+            font = Font24x32,
             text_color = Black,
             background_color = White
         ))
@@ -78,11 +71,11 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
 #[entry]
 fn main() -> ! {
     // Initialize heap and other system resources
-    // init_heap();
+    init_heap();
     let peripherals = Peripherals::take();
 
     let mut system = peripherals.DPORT.split();
-    let clocks = ClockControl::max(system.clock_control).freeze();
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock240MHz).freeze();
 
     let timer_group1 = TimerGroup::new(
         peripherals.TIMG1,
@@ -100,57 +93,78 @@ fn main() -> ! {
         &clocks,
     )
     .unwrap();
+use hal::spi::Spi;
+use embedded_hal::blocking::delay::DelayMs;
+
+// Create an SPI interface and pins
+let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+let mut delay = Delay::new(&clocks);
+let busy = io.pins.gpio4.into_floating_input();
+let mut rst = io.pins.gpio16.into_push_pull_output();
+let mosi = io.pins.gpio23.into_push_pull_output();
+let miso = io.pins.gpio19.into_floating_input();
+let mut sclk = io.pins.gpio18.into_push_pull_output();
+let dc = io.pins.gpio17.into_push_pull_output();
+let mut cs = io.pins.gpio5.into_push_pull_output();
+delay.delay_ms(10u32);
+
+let mut spi = spi::Spi::new_no_cs_no_miso(
+    peripherals.SPI3,
+    sclk,
+    mosi,
+    40u32.MHz(),
+    spi::SpiMode::Mode0,
+    &mut system.peripheral_clock_control,
+    &clocks,
+);
+
+
+let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
+// Initialize ePaper display
+ssd1680.clear_bw_frame(&mut spi).unwrap();
+let mut display_bw = Display2in13::bw();
+
+draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defined
+
+
+ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
     esp_println!("Logger is setup");
     // Initialize WiFi
     let (wifi, ..) = peripherals.RADIO.split();
-    let mut socket_set_entries: [SocketStorage; 3] = Default::default();
+    esp_println!("Logger is setup");
+    let mut socket_set_entries: [SocketStorage; 5] = Default::default();
+    esp_println!("Logger is setup");
     let (iface, device, mut controller, sockets) =
-        create_network_interface(&init, wifi, WifiMode::Sta, &mut socket_set_entries).unwrap();
+        match create_network_interface(&init, wifi, WifiMode::Sta, &mut socket_set_entries)
+        {
+            Ok(val) => val,
+            Err(_) => {
+                let err_msg = "Network init failed";
+                draw_text(&mut display_bw, err_msg, 0, 0); // Assuming draw_text function is defined
+                ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+                ssd1680.display_frame(&mut spi, &mut delay).unwrap();
+                // Log the error message to serial console or another debugging interface
+                print!("{}", err_msg);
+                loop {}
+            }
+        };
+        esp_println!("Logger is setup");
     let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
-
+    esp_println!("Logger is setup");
     let client_config = Configuration::Client(ClientConfiguration {
         ssid: SSID.into(),
         password: PASSWORD.into(),
         ..Default::default()
     });
-
+    esp_println!("Logger is setup");
     controller.set_configuration(&client_config).unwrap();
     controller.start().unwrap();
-
+    esp_println!("Logger is setup");
     // Assuming you have imported the required crates and modules
-    use hal::spi::Spi;
-    use embedded_hal::blocking::delay::DelayMs;
 
-    // Create an SPI interface and pins
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let mut delay = Delay::new(&clocks);
-    let busy = io.pins.gpio4.into_floating_input();
-    let mut rst = io.pins.gpio16.into_push_pull_output();
-    let mosi = io.pins.gpio23.into_push_pull_output();
-    let miso = io.pins.gpio19.into_floating_input();
-    let mut sclk = io.pins.gpio18.into_push_pull_output();
-    let dc = io.pins.gpio17.into_push_pull_output();
-    let mut cs = io.pins.gpio5.into_push_pull_output();
-    delay.delay_ms(10u32);
-
-    let mut spi = spi::Spi::new_no_cs_no_miso(
-        peripherals.SPI3,
-        sclk,
-        mosi,
-        4u32.MHz(),
-        spi::SpiMode::Mode0,
-        &mut system.peripheral_clock_control,
-        &clocks,
-    );
-
-
-    let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
-    // Initialize ePaper display
-    ssd1680.clear_bw_frame(&mut spi).unwrap();
-    let mut display_bw = Display2in13::bw();
-
-    let mut socket_set_entries: [SocketStorage; 3] = Default::default();
+    let mut socket_set_entries: [SocketStorage; 5] = Default::default();
 
     let client_config = Configuration::Client(ClientConfiguration {
         ssid: SSID.into(),
@@ -185,12 +199,13 @@ fn main() -> ! {
                 }
             }
             Err(err) => {
-                println!("{:?}", err);
-                loop {}
+                println!("WiFi Error - {:?} - delay 1000 ms", err);
+                delay.delay_ms(1000u32);
+                controller.connect().unwrap();
             }
         }
     }
-    println!("{:?}", controller.is_connected());
+    println!("Is connected: {:?}", controller.is_connected());
 
     // wait for getting an ip address
     println!("Wait to get an ip address");
@@ -199,6 +214,7 @@ fn main() -> ! {
 
         if wifi_stack.is_iface_up() {
             println!("got ip {:?}", wifi_stack.get_ip_info());
+            delay.delay_ms(500u32);
             break;
         }
     }
@@ -212,11 +228,24 @@ fn main() -> ! {
     loop {
         println!("Making HTTP request");
         socket.work();
+        println!("Opening socket");
 
-        socket
-            .open(IpAddress::Ipv4(Ipv4Address::new(93, 99, 115, 9)), 80)
-            .unwrap();
+        match socket.open(IpAddress::Ipv4(Ipv4Address::new(93, 99, 115, 9)), 80) {
+            Ok(_) => {
+                // Successfully opened the socket
+                // Continue with the next steps
+            },
+            Err(e) => {
+                // Failed to open the socket, display the error message
+                // let err_msg = format!("Socket open failed: {:?}", e);
+                // draw_text(&mut display_bw, &err_msg, 0, 0); // Assuming draw_text function is defined
+                // Log the error message to serial console or another debugging interface
+                println!("error{:?}", e);
+                loop{};
+            }
+        }
 
+        println!("Sendig GET request");
         socket
             .write(b"GET /info.txt HTTP/1.0\r\nHost: iot.georgik.rocks\r\n\r\n")
             .unwrap();
@@ -227,6 +256,7 @@ fn main() -> ! {
         let mut full_response = [0u8; 2048];
         let mut full_len = 0;
 
+        println!("Reading response");
         // Read the HTTP response into the buffer.
         loop {
             let mut buffer = [0u8; 512];
@@ -234,7 +264,9 @@ fn main() -> ! {
                 // Copy the newly read bytes into `full_response`.
                 full_response[full_len..full_len + len].copy_from_slice(&buffer[0..len]);
                 full_len += len;
+                println!("Read {} bytes", len);
             } else {
+                println!("Read error");
                 break;
             }
 
@@ -256,7 +288,7 @@ fn main() -> ! {
         if body_start != 0 {
             let body = &full_response[body_start..full_len];
             let to_print = unsafe { core::str::from_utf8_unchecked(body) };
-            draw_text(&mut display_bw, &to_print, 0, 0); // Assuming draw_text function is defined
+            draw_text(&mut display_bw, &to_print, 0, 10); // Assuming draw_text function is defined
             print!("{}", to_print);
         }
 
@@ -266,14 +298,6 @@ fn main() -> ! {
 
         ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
         ssd1680.display_frame(&mut spi, &mut delay).unwrap();
-
-
-        // Update the frame buffer with the black and white content
-        ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
-
-        // Display the frame on the ePaper screen
-        ssd1680.display_frame(&mut spi, &mut delay).unwrap();
-
 
 
         // Delay before repeating
