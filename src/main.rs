@@ -110,15 +110,15 @@ fn main() -> ! {
     ssd1680.clear_bw_frame(&mut spi).unwrap();
 
     // Define the size of the buffer
-    const BUF_SIZE: usize = 4000;
+    const BUF_SIZE: usize = 4050;
     use alloc::alloc::{alloc, dealloc, Layout};
     // Create a layout
     let layout = Layout::from_size_align(BUF_SIZE, 1).unwrap();
 
     // Allocate a buffer
     let buf_ptr = unsafe { alloc(layout) };
-    let buf_array: &mut [u8; 4000] = unsafe {
-        &mut *(buf_ptr as *mut [u8; 4000])
+    let buf_array: &mut [u8; 4050] = unsafe {
+        &mut *(buf_ptr as *mut [u8; 4050])
     };
     // let buf_array = alloc::vec![0u8; 4000];
     let mut display_bw = Display2in13::bw_with_buffer(*buf_array);
@@ -278,8 +278,9 @@ fn main() -> ! {
 
         socket.disconnect();
 
-        println!("Updating display");
+        println!("Updating frame");
         ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+        println!("Updating display");
         ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
         println!("Sleeping");
