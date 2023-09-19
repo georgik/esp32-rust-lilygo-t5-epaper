@@ -18,19 +18,9 @@ use esp_wifi::wifi::{WifiError, WifiMode};
 use esp_wifi::wifi_interface::WifiStack;
 use esp_wifi::{current_millis, initialize, EspWifiInitFor};
 
-
-// use embedded_svc::http::client::{HttpClient, HttpClientBuilder};
-// use embedded_svc::http::method::Method;
-// use embedded_svc::http::request::Request;
-// use embedded_svc::http::response::Response;
-
-// use hal::{clock::ClockControl, peripherals::Peripherals, prelude::*};
-// use hal::Rng;
-
 use smoltcp::iface::SocketStorage;
 use smoltcp::wire::IpAddress;
 use smoltcp::wire::Ipv4Address;
-
 
 use embedded_graphics::{
     fonts::{Font24x32, Text},
@@ -70,21 +60,20 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
 
 #[entry]
 fn main() -> ! {
+    // panic!("End of scan");
     // Initialize heap and other system resources
     init_heap();
     let peripherals = Peripherals::take();
 
     let mut system = peripherals.DPORT.split();
-    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock240MHz).freeze();
+    let clocks = ClockControl::max(system.clock_control).freeze();
 
-    let timer_group1 = TimerGroup::new(
+    let timer = hal::timer::TimerGroup::new(
         peripherals.TIMG1,
         &clocks,
         &mut system.peripheral_clock_control,
-    );
-    let timer = timer_group1.timer0;
-    
-
+    )
+    .timer0;
     let init = initialize(
         EspWifiInitFor::Wifi,
         timer,
@@ -93,19 +82,19 @@ fn main() -> ! {
         &clocks,
     )
     .unwrap();
-use hal::spi::Spi;
+
 use embedded_hal::blocking::delay::DelayMs;
 
 // Create an SPI interface and pins
 let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
 let mut delay = Delay::new(&clocks);
 let busy = io.pins.gpio4.into_floating_input();
-let mut rst = io.pins.gpio16.into_push_pull_output();
+let rst = io.pins.gpio16.into_push_pull_output();
 let mosi = io.pins.gpio23.into_push_pull_output();
-let miso = io.pins.gpio19.into_floating_input();
-let mut sclk = io.pins.gpio18.into_push_pull_output();
+// let miso = io.pins.gpio19.into_floating_input();
+let sclk = io.pins.gpio18.into_push_pull_output();
 let dc = io.pins.gpio17.into_push_pull_output();
-let mut cs = io.pins.gpio5.into_push_pull_output();
+let cs = io.pins.gpio5.into_push_pull_output();
 delay.delay_ms(10u32);
 
 let mut spi = spi::Spi::new_no_cs_no_miso(
@@ -122,7 +111,20 @@ let mut spi = spi::Spi::new_no_cs_no_miso(
 let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
 // Initialize ePaper display
 ssd1680.clear_bw_frame(&mut spi).unwrap();
-let mut display_bw = Display2in13::bw();
+
+// Define the size of the buffer
+const BUF_SIZE: usize = 4000;
+use alloc::alloc::{alloc, dealloc, Layout};
+// Create a layout
+let layout = Layout::from_size_align(BUF_SIZE, 1).unwrap();
+
+// Allocate a buffer
+let buf_ptr = unsafe { alloc(layout) };
+let buf_array: &mut [u8; 4000] = unsafe {
+    &mut *(buf_ptr as *mut [u8; 4000])
+};
+// let buf_array = alloc::vec![0u8; 4000];
+let mut display_bw = Display2in13::bw_with_buffer(*buf_array);
 
 draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defined
 
@@ -223,10 +225,6 @@ ssd1680.display_frame(&mut spi, &mut delay).unwrap();
                 // Continue with the next steps
             },
             Err(e) => {
-                // Failed to open the socket, display the error message
-                // let err_msg = format!("Socket open failed: {:?}", e);
-                // draw_text(&mut display_bw, &err_msg, 0, 0); // Assuming draw_text function is defined
-                // Log the error message to serial console or another debugging interface
                 println!("error{:?}", e);
                 loop{};
             }
