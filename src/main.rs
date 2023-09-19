@@ -130,12 +130,12 @@ draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defi
 ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
 ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
-    esp_println!("Logger is setup");
+    esp_println!("Initializing");
     // Initialize WiFi
     let (wifi, ..) = peripherals.RADIO.split();
-    esp_println!("Logger is setup");
+    esp_println!("Allocating sockets");
     let mut socket_set_entries: [SocketStorage; 5] = Default::default();
-    esp_println!("Logger is setup");
+    esp_println!("Acquiring WiFi interface");
     let (iface, device, mut controller, sockets) =
         match create_network_interface(&init, wifi, WifiMode::Sta, &mut socket_set_entries)
         {
@@ -150,30 +150,17 @@ ssd1680.display_frame(&mut spi, &mut delay).unwrap();
                 loop {}
             }
         };
-        esp_println!("Logger is setup");
+        esp_println!("Creating WifiStack");
     let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
-    esp_println!("Logger is setup");
+    esp_println!("Creating ClientConfiguration");
     let client_config = Configuration::Client(ClientConfiguration {
         ssid: SSID.into(),
         password: PASSWORD.into(),
         ..Default::default()
     });
-    esp_println!("Logger is setup");
+    esp_println!("Setting configuration");
     controller.set_configuration(&client_config).unwrap();
-    controller.start().unwrap();
-    esp_println!("Logger is setup");
-    // Assuming you have imported the required crates and modules
-
-    let mut socket_set_entries: [SocketStorage; 5] = Default::default();
-
-    let client_config = Configuration::Client(ClientConfiguration {
-        ssid: SSID.into(),
-        password: PASSWORD.into(),
-        ..Default::default()
-    });
-    let res = controller.set_configuration(&client_config);
-    println!("wifi_set_configuration returned {:?}", res);
-
+    esp_println!("Starting WiFi controller");
     controller.start().unwrap();
     println!("is wifi started: {:?}", controller.is_started());
 
