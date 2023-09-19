@@ -12,7 +12,6 @@ use embedded_svc::wifi::{AccessPointInfo, ClientConfiguration, Configuration, Wi
 
 use esp_backtrace as _;
 use esp_println::{print, println};
-use esp_println::println as esp_println;
 use esp_wifi::wifi::utils::create_network_interface;
 use esp_wifi::wifi::{WifiError, WifiMode};
 use esp_wifi::wifi_interface::WifiStack;
@@ -21,6 +20,8 @@ use esp_wifi::{current_millis, initialize, EspWifiInitFor};
 use smoltcp::iface::SocketStorage;
 use smoltcp::wire::IpAddress;
 use smoltcp::wire::Ipv4Address;
+
+use embedded_hal::blocking::delay::DelayMs;
 
 use embedded_graphics::{
     fonts::{Font24x32, Text},
@@ -60,8 +61,6 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
 
 #[entry]
 fn main() -> ! {
-    // panic!("End of scan");
-    // Initialize heap and other system resources
     init_heap();
     let peripherals = Peripherals::take();
 
@@ -83,61 +82,58 @@ fn main() -> ! {
     )
     .unwrap();
 
-use embedded_hal::blocking::delay::DelayMs;
+    // Create an SPI interface and pins
+    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let mut delay = Delay::new(&clocks);
+    let busy = io.pins.gpio4.into_floating_input();
+    let rst = io.pins.gpio16.into_push_pull_output();
+    let mosi = io.pins.gpio23.into_push_pull_output();
+    // let miso = io.pins.gpio19.into_floating_input();
+    let sclk = io.pins.gpio18.into_push_pull_output();
+    let dc = io.pins.gpio17.into_push_pull_output();
+    let cs = io.pins.gpio5.into_push_pull_output();
+    delay.delay_ms(10u32);
 
-// Create an SPI interface and pins
-let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-let mut delay = Delay::new(&clocks);
-let busy = io.pins.gpio4.into_floating_input();
-let rst = io.pins.gpio16.into_push_pull_output();
-let mosi = io.pins.gpio23.into_push_pull_output();
-// let miso = io.pins.gpio19.into_floating_input();
-let sclk = io.pins.gpio18.into_push_pull_output();
-let dc = io.pins.gpio17.into_push_pull_output();
-let cs = io.pins.gpio5.into_push_pull_output();
-delay.delay_ms(10u32);
-
-let mut spi = spi::Spi::new_no_cs_no_miso(
-    peripherals.SPI3,
-    sclk,
-    mosi,
-    40u32.MHz(),
-    spi::SpiMode::Mode0,
-    &mut system.peripheral_clock_control,
-    &clocks,
-);
+    let mut spi = spi::Spi::new_no_cs_no_miso(
+        peripherals.SPI3,
+        sclk,
+        mosi,
+        40u32.MHz(),
+        spi::SpiMode::Mode0,
+        &mut system.peripheral_clock_control,
+        &clocks,
+    );
 
 
-let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
-// Initialize ePaper display
-ssd1680.clear_bw_frame(&mut spi).unwrap();
+    let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
+    // Initialize ePaper display
+    ssd1680.clear_bw_frame(&mut spi).unwrap();
 
-// Define the size of the buffer
-const BUF_SIZE: usize = 4000;
-use alloc::alloc::{alloc, dealloc, Layout};
-// Create a layout
-let layout = Layout::from_size_align(BUF_SIZE, 1).unwrap();
+    // Define the size of the buffer
+    const BUF_SIZE: usize = 4000;
+    use alloc::alloc::{alloc, dealloc, Layout};
+    // Create a layout
+    let layout = Layout::from_size_align(BUF_SIZE, 1).unwrap();
 
-// Allocate a buffer
-let buf_ptr = unsafe { alloc(layout) };
-let buf_array: &mut [u8; 4000] = unsafe {
-    &mut *(buf_ptr as *mut [u8; 4000])
-};
-// let buf_array = alloc::vec![0u8; 4000];
-let mut display_bw = Display2in13::bw_with_buffer(*buf_array);
+    // Allocate a buffer
+    let buf_ptr = unsafe { alloc(layout) };
+    let buf_array: &mut [u8; 4000] = unsafe {
+        &mut *(buf_ptr as *mut [u8; 4000])
+    };
+    // let buf_array = alloc::vec![0u8; 4000];
+    let mut display_bw = Display2in13::bw_with_buffer(*buf_array);
 
-draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defined
+    draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defined
 
+    ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+    ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
-ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
-ssd1680.display_frame(&mut spi, &mut delay).unwrap();
-
-    esp_println!("Initializing");
+    println!("Initializing");
     // Initialize WiFi
     let (wifi, ..) = peripherals.RADIO.split();
-    esp_println!("Allocating sockets");
+    println!("Allocating sockets");
     let mut socket_set_entries: [SocketStorage; 5] = Default::default();
-    esp_println!("Acquiring WiFi interface");
+    println!("Acquiring WiFi interface");
     let (iface, device, mut controller, sockets) =
         match create_network_interface(&init, wifi, WifiMode::Sta, &mut socket_set_entries)
         {
@@ -151,18 +147,19 @@ ssd1680.display_frame(&mut spi, &mut delay).unwrap();
                 print!("{}", err_msg);
                 loop {}
             }
-        };
-        esp_println!("Creating WifiStack");
+    };
+
+    println!("Creating WifiStack");
     let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
-    esp_println!("Creating ClientConfiguration");
+    println!("Creating ClientConfiguration");
     let client_config = Configuration::Client(ClientConfiguration {
         ssid: SSID.into(),
         password: PASSWORD.into(),
         ..Default::default()
     });
-    esp_println!("Setting configuration");
+    println!("Setting configuration");
     controller.set_configuration(&client_config).unwrap();
-    esp_println!("Starting WiFi controller");
+    println!("Starting WiFi controller");
     controller.start().unwrap();
     println!("is wifi started: {:?}", controller.is_started());
 
@@ -277,15 +274,17 @@ ssd1680.display_frame(&mut spi, &mut delay).unwrap();
             print!("{}", to_print);
         }
 
-        println!();
+        println!("Closing socket");
 
         socket.disconnect();
 
+        println!("Updating display");
         ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
         ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
-
+        println!("Sleeping");
         // Delay before repeating
         delay.delay_ms(500000u32);
+        println!("Waking up");
     }
 }
