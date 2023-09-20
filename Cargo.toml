@@ -16,8 +16,8 @@ esp-println       = { version = "0.6.0", features = ["esp32", "log" ] }
 log = { version = "0.4.18" }
 esp-alloc = { version = "0.3.0" }
 # ssd1680 = "0.1.0"
-ssd1680 = { path = "../ssd1680" }
-# ssd1680 = { git = "https://github.com/georgik/ssd1680.git", branch = "feature/external-buffer" }
+# ssd1680 = { path = "../ssd1680" }
+ssd1680 = { git = "https://github.com/georgik/ssd1680.git",  rev = "6b82e9cd863c7020f076b10d9678458d34965a42" }
 
 esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", features = ["esp32", "wifi" ] }
 embedded-io = { version = "0.4" }
