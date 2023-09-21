@@ -3,7 +3,16 @@
 
 extern crate alloc;
 use core::{mem::MaybeUninit, panic};
-use hal::{psram, prelude::*, peripherals::Peripherals, spi, timer::TimerGroup, clock::{ClockControl, CpuClock}, Delay, Rtc, Rng, IO};
+use hal::{
+    psram, prelude::*, peripherals::Peripherals, spi, timer::TimerGroup, clock::{ClockControl, CpuClock}, Delay, Rtc, Rng, IO,
+    rtc_cntl::{
+        get_reset_reason,
+        get_wakeup_cause,
+        sleep::{Ext0WakeupSource, TimerWakeupSource, WakeupLevel},
+        SocResetReason,
+    },
+};
+use core::time::Duration;
 
 use embedded_io::blocking::*;
 use embedded_svc::ipv4::Interface;
@@ -85,6 +94,7 @@ fn main() -> ! {
         &clocks,
     )
     .unwrap();
+    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
 
     // Create an SPI interface and pins
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -96,6 +106,7 @@ fn main() -> ! {
     let sclk = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
     let cs = io.pins.gpio5.into_push_pull_output();
+    let mut wakeup_pin = io.pins.gpio39;
     delay.delay_ms(10u32);
 
     let mut spi = spi::Spi::new_no_cs_no_miso(
@@ -205,7 +216,7 @@ fn main() -> ! {
     println!("Setting configuration");
     controller.set_configuration(&client_config).unwrap();
     println!("Starting WiFi controller");
-    println!("buf_array: {:?}", display_bw.buffer());
+    // println!("buf_array: {:?}", display_bw.buffer());
     match controller.start() {
         Ok(_) => println!("WiFi controller started"),
         Err(e) => println!("WiFi controller error {:?}", e),
@@ -350,9 +361,14 @@ fn main() -> ! {
         println!("Updating display");
         ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
-        println!("Sleeping");
-        // Delay before repeating
-        delay.delay_ms(10000u32);
-        println!("Waking up");
+        // println!("Sleeping");
+        // delay.delay_ms(500000u32);
+        // println!("Waking up");
+
+        println!("Deep sleep");
+        let timer = TimerWakeupSource::new(Duration::from_secs(30));
+        let ext0 = Ext0WakeupSource::new(&mut wakeup_pin, WakeupLevel::High);
+        delay.delay_ms(100u32);
+        rtc.sleep_deep(&[&timer, &ext0], &mut delay);
     }
 }
