@@ -10,7 +10,8 @@ rustflags = [
     "-C", "link-arg=-Trom_functions.x",
 
     # trace
-    "-C", "force-frame-pointers"
+    "-C", "force-frame-pointers",
+    "-C", "target-feature=-loop",
 ]
 
 target = "xtensa-esp32-none-elf"

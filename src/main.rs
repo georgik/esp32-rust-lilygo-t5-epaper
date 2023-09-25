@@ -118,9 +118,6 @@ fn main() -> ! {
     // let buf_array: &mut [u8; 4050] = unsafe {
     //     &mut *(buf_ptr as *mut [u8; 4050])
     // };
-    let mut rx_buffer = [0u8; 1536];
-    let mut tx_buffer = [0u8; 1536];
-    let mut buffer = [0u8; 512];
 
     // let mut nothing_array = alloc::vec![0u8; 500];
     // println!("{:?}",nothing_array[0]);
@@ -205,7 +202,7 @@ fn main() -> ! {
     println!("Setting configuration");
     controller.set_configuration(&client_config).unwrap();
     println!("Starting WiFi controller");
-    println!("buf_array: {:?}", display_bw.buffer());
+    // println!("buf_array: {:?}", display_bw.buffer());
     match controller.start() {
         Ok(_) => println!("WiFi controller started"),
         Err(e) => println!("WiFi controller error {:?}", e),
@@ -274,6 +271,9 @@ fn main() -> ! {
     
     println!("Start busy loop on main");
 
+    let mut rx_buffer = [0u8; 1536];
+    let mut tx_buffer = [0u8; 1536];
+    let mut buffer = [0u8; 512];
 
     let mut socket = wifi_stack.get_socket(&mut rx_buffer, &mut tx_buffer);
 
