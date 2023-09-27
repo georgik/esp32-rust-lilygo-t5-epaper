@@ -16,7 +16,7 @@ cargo run --release
 
 ## Hello example
 
-Simpler example which just draws to the displau
+Simpler example which just draws to the display
 
 ```
 cargo run --release --example hello
