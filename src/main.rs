@@ -166,7 +166,7 @@ let init = initialize(
     //         panic!("Error converting buf_array: {:?}", e);
     //     }
     // };
-    let mut display_bw = Display2in13::bw_with_buffer(buf_array.try_into().unwrap());
+    let mut display_bw = Display2in13::bw_with_buffer(buf_array).unwrap();
     // let mut display_bw = Display2in13::bw();
     println!("Drawing text");
 
