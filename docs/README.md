@@ -21,3 +21,8 @@ Simpler example which just draws to the displau
 ```
 cargo run --release --example hello
 ```
+
+### Wokwi simulation
+
+Once the release build is ready, it's possible to launch simulator.
+Go to VS Code and open Wokwi simulation.
