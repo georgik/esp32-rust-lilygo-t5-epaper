@@ -1,12 +1,9 @@
 #![no_std]
 #![no_main]
-// #![feature(llvm_asm)]
-// #![feature(asm)]
-#![feature(asm_experimental_arch)]
 
 extern crate alloc;
-use core::{mem::MaybeUninit, panic};
-use hal::{psram, prelude::*, peripherals::Peripherals, spi, timer::TimerGroup, clock::{ClockControl, CpuClock}, Delay, Rtc, Rng, IO};
+use core::mem::MaybeUninit;
+use hal::{prelude::*, peripherals::Peripherals, spi, clock::ClockControl, Delay, Rng, IO};
 
 use embedded_io::blocking::*;
 use embedded_svc::ipv4::Interface;
@@ -31,7 +28,7 @@ use embedded_graphics::{
     style::PrimitiveStyle,
     text_style,
 };
-use core::arch::asm;
+
 use ssd1680::prelude::*;
 use ssd1680::color::{Black, White};
 
@@ -115,76 +112,18 @@ let init = initialize(
     // Initialize ePaper display
     ssd1680.clear_bw_frame(&mut spi).unwrap();
 
-    // // Allocate a buffer
-    // let buf_ptr = unsafe { alloc(layout) };
-    // let buf_array: &mut [u8; 4050] = unsafe {
-    //     &mut *(buf_ptr as *mut [u8; 4050])
-    // };
-
-    let mut sp: usize;
-    unsafe { asm!("mov {}, sp", out(reg) sp) };
-    // match stacker::remaining_stack() {
-    //     Ok(remaining) => println!("Remaining stack: {}", remaining),
-    //     Err(_) => println!("Error getting remaining stack"),
-    // }
-    println!("Stack pointer: {:x}", sp);
-
-    // let mut nothing_array = alloc::vec![0u8; 500];
-    // println!("{:?}",nothing_array[0]);
     let mut buf_array = alloc::vec![0u8; 4000];
 
-    // let first_element_ptr = &buf_array[0] as *const u8;
-    // println!("Memory address of first element: {:?}", first_element_ptr);
-
-    // loop that sets first 1000 bytes of buf_array to 255
     for i in 0..4000 {
         buf_array[i] = 255;
     }
-    unsafe { asm!("mov {}, sp", out(reg) sp) };
-    println!("Stack pointer: {:x}", sp);
-
-
-    // print buf size for width 122 and height 250
-    // println!("buf size: {}", buffer_len(122, 250));
-    // // print size of buf_array
-    // println!("buf_array size: {}", buf_array.len());
-
-    // println!("buf_array: {:?}", buf_array);
     println!("Creating display_bw");
-    // let mut display_bw = match buf_array.try_into() {
-    //     Ok(buffer) => {
-    //         println!("Buffer converted");
-    //         let display = Display2in13::bw_with_buffer(buffer);
-    //         println!("Display created");
-    //         display
-    //     }
-    //     ,
-    //     Err(e) => {
-    //         // Log the error and handle it as appropriate for your application.
-    //         println!("Error converting buf_array: {:?}", e);
-    //         // Returning or handling the error further as needed
-    //         panic!("Error converting buf_array: {:?}", e);
-    //     }
-    // };
     let mut display_bw = Display2in13::bw_with_buffer(buf_array).unwrap();
-    // let mut display_bw = Display2in13::bw();
     println!("Drawing text");
-
-    // draw_text(&mut display_bw, "...", 0, 10); // Assuming draw_text function is defined
-
-    // match ssd1680.update_bw_frame(&mut spi, display_bw.buffer()) {
-    //     Ok(_) => println!("Update frame success"),
-    //     Err(e) => println!("Update frame error {:?}", e),
-    // }
-
-    // match ssd1680.display_frame(&mut spi, &mut delay) {
-    //     Ok(_) => println!("Display frame success"),
-    //     Err(e) => println!("Display frame error {:?}", e),
-    // }
 
     println!("Initializing");
     // Initialize WiFi
-    
+
     let (wifi, ..) = peripherals.RADIO.split();
     println!("Allocating sockets");
     let mut socket_set_entries: [SocketStorage; 5] = Default::default();
@@ -195,10 +134,6 @@ let init = initialize(
             Ok(val) => val,
             Err(_) => {
                 let err_msg = "Network init failed";
-                // draw_text(&mut display_bw, err_msg, 0, 0); // Assuming draw_text function is defined
-                // ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
-                // ssd1680.display_frame(&mut spi, &mut delay).unwrap();
-                // Log the error message to serial console or another debugging interface
                 print!("{}", err_msg);
                 loop {}
             }
@@ -214,30 +149,10 @@ let init = initialize(
     println!("Setting configuration");
     controller.set_configuration(&client_config).unwrap();
     println!("Starting WiFi controller");
-    // println!("buf_array: {:?}", display_bw.buffer());
     match controller.start() {
         Ok(_) => println!("WiFi controller started"),
         Err(e) => println!("WiFi controller error {:?}", e),
     }
-    // println!("is wifi started: {:?}", controller.is_started());
-    
-    // println!("Creating display_bw");
-    // let mut display_bw = match buf_array.try_into() {
-    //     Ok(buffer) => {
-    //         println!("Buffer converted");
-    //         let display = Display2in13::bw_with_buffer(buffer);
-    //         println!("Display created");
-    //         display
-    //     }
-    //     ,
-    //     Err(e) => {
-    //         // Log the error and handle it as appropriate for your application.
-    //         println!("Error converting buf_array: {:?}", e);
-    //         // Returning or handling the error further as needed
-    //         panic!("Error converting buf_array: {:?}", e);
-    //     }
-    // };
-    // let mut display_bw = Display2in13::bw_with_buffer(buf_array.try_into().unwrap());
 
     println!("Start Wifi Scan");
     let res: Result<(heapless::Vec<AccessPointInfo, 10>, usize), WifiError> = controller.scan_n();
@@ -246,7 +161,6 @@ let init = initialize(
             println!("{:?}", ap);
         }
     }
-
     println!("{:?}", controller.get_capabilities());
     println!("wifi_connect {:?}", controller.connect());
 
@@ -280,7 +194,7 @@ let init = initialize(
             break;
         }
     }
-    
+
     println!("Start busy loop on main");
 
     let mut rx_buffer = [0u8; 1536];
@@ -317,10 +231,9 @@ let init = initialize(
         let mut full_len = 0;
 
         println!("Reading response");
-        
+
         // Read the HTTP response into the buffer.
         loop {
-            
             if let Ok(len) = socket.read(&mut buffer) {
                 // Copy the newly read bytes into `full_response`.
                 full_response[full_len..full_len + len].copy_from_slice(&buffer[0..len]);
@@ -345,7 +258,7 @@ let init = initialize(
                 break;
             }
         }
-        
+
         if body_start != 0 {
             let body = &full_response[body_start..full_len];
             let to_print = unsafe { core::str::from_utf8_unchecked(body) };
@@ -364,7 +277,7 @@ let init = initialize(
 
         println!("Sleeping");
         // Delay before repeating
-        delay.delay_ms(10000u32);
+        delay.delay_ms(500000u32);
         println!("Waking up");
     }
 }

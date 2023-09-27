@@ -6,17 +6,13 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hal = { package = "esp32-hal", version = "0.15.0", features = [ "psram_8m" ] }
-# hal = { package = "esp32-hal", path = "../esp-hal", features = [ "psram_8m" ] }
-#hal = { package = "esp32-hal", path = "../esp-hal/esp32-hal", features = [ "psram_8m" ] }
+hal = { package = "esp32-hal", version = "0.15.0"}
 embedded-hal = "0.2"
 esp-backtrace = { version = "0.8.0", default-features=false, features = ["esp32", "panic-handler", "exception-handler", "print-uart" ] }
 embedded-graphics = "0.6.2"
 esp-println       = { version = "0.6.0", features = ["esp32", "log" ] }
 log = { version = "0.4.18" }
 esp-alloc = { version = "0.3.0" }
-# ssd1680 = "0.1.0"
-#ssd1680 = { path = "../ssd1680" }
 ssd1680 = { git = "https://github.com/georgik/ssd1680.git",  rev = "b4acd756bf10baeac667150158f60013d1900f60" }
 
 esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", features = ["esp32", "wifi" ] }
@@ -25,5 +21,3 @@ smoltcp = { version = "0.10.0", default-features=false, features = ["proto-igmp"
 embedded-svc = { version = "0.25.1", default-features = false, features = ["use_serde"] }
 heapless = { version = "0.7" }
 
-#[patch.crates-io]
-#hal = { package = "esp32-hal", path = "../esp-hal/esp32-hal", features = [ "psram_8m" ] }
