@@ -1,5 +1,8 @@
 #![no_std]
 #![no_main]
+// #![feature(llvm_asm)]
+// #![feature(asm)]
+#![feature(asm_experimental_arch)]
 
 extern crate alloc;
 use core::{mem::MaybeUninit, panic};
@@ -28,13 +31,12 @@ use embedded_graphics::{
     style::PrimitiveStyle,
     text_style,
 };
-
+use core::arch::asm;
 use ssd1680::prelude::*;
 use ssd1680::color::{Black, White};
 
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
-
 
 #[global_allocator]
 static ALLOCATOR: esp_alloc::EspHeap = esp_alloc::EspHeap::empty();
@@ -77,14 +79,14 @@ fn main() -> ! {
         &mut system.peripheral_clock_control,
     )
     .timer0;
-    let init = initialize(
-        EspWifiInitFor::Wifi,
-        timer,
-        Rng::new(peripherals.RNG),
-        system.radio_clock_control,
-        &clocks,
-    )
-    .unwrap();
+let init = initialize(
+    EspWifiInitFor::Wifi,
+    timer,
+    Rng::new(peripherals.RNG),
+    system.radio_clock_control,
+    &clocks,
+)
+.unwrap();
 
     // Create an SPI interface and pins
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -119,6 +121,14 @@ fn main() -> ! {
     //     &mut *(buf_ptr as *mut [u8; 4050])
     // };
 
+    let mut sp: usize;
+    unsafe { asm!("mov {}, sp", out(reg) sp) };
+    // match stacker::remaining_stack() {
+    //     Ok(remaining) => println!("Remaining stack: {}", remaining),
+    //     Err(_) => println!("Error getting remaining stack"),
+    // }
+    println!("Stack pointer: {:x}", sp);
+
     // let mut nothing_array = alloc::vec![0u8; 500];
     // println!("{:?}",nothing_array[0]);
     let mut buf_array = alloc::vec![0u8; 4000];
@@ -130,6 +140,8 @@ fn main() -> ! {
     for i in 0..4000 {
         buf_array[i] = 255;
     }
+    unsafe { asm!("mov {}, sp", out(reg) sp) };
+    println!("Stack pointer: {:x}", sp);
 
 
     // print buf size for width 122 and height 250
