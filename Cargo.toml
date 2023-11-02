@@ -1,23 +1,22 @@
 [package]
 name = "lily_go_t5_rs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Juraj Michalek <juraj.michalek@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-hal = { package = "esp32-hal", version = "0.15.0"}
+hal = { package = "esp32-hal", version = "0.16.0"}
 embedded-hal = "0.2"
 esp-backtrace = { version = "0.8.0", default-features=false, features = ["esp32", "panic-handler", "exception-handler", "print-uart" ] }
 embedded-graphics = "0.6.2"
-esp-println       = { version = "0.6.0", features = ["esp32", "log" ] }
+esp-println       = { version = "0.7.0", features = ["esp32", "log" ] }
 log = { version = "0.4.18" }
 esp-alloc = { version = "0.3.0" }
 ssd1680 = { git = "https://github.com/georgik/ssd1680.git",  rev = "b4acd756bf10baeac667150158f60013d1900f60" }
 
 esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", features = ["esp32", "wifi" ] }
-embedded-io = { version = "0.4" }
+embedded-io = { version = "0.6.1" }
 smoltcp = { version = "0.10.0", default-features=false, features = ["proto-igmp", "proto-ipv4", "proto-dns", "socket-tcp", "socket-icmp", "socket-udp", "socket-dns", "medium-ethernet", "proto-dhcpv4", "socket-raw", "socket-dhcpv4"] }
-embedded-svc = { version = "0.25.1", default-features = false, features = ["use_serde"] }
+embedded-svc = { version = "0.26.1", default-features = false, features = ["use_serde"] }
 heapless = { version = "0.7" }
-

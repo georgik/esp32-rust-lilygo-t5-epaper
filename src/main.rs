@@ -3,11 +3,16 @@
 
 extern crate alloc;
 use core::mem::MaybeUninit;
-use hal::{prelude::*, peripherals::Peripherals, spi, clock::ClockControl, Delay, Rng, IO};
+use hal::{prelude::*, peripherals::Peripherals,
+    spi::{master::Spi, SpiMode},
+    clock::ClockControl, Delay, Rng, IO,
+    timer::TimerGroup
+};
 
-use embedded_io::blocking::*;
+// use embedded_io::blocking::*;
 use embedded_svc::ipv4::Interface;
 use embedded_svc::wifi::{AccessPointInfo, ClientConfiguration, Configuration, Wifi};
+use embedded_svc::io::{Read, Write};
 
 use esp_backtrace as _;
 use esp_println::{print, println};
@@ -25,7 +30,6 @@ use embedded_hal::blocking::delay::DelayMs;
 use embedded_graphics::{
     fonts::{Font24x32, Text},
     prelude::*,
-    style::PrimitiveStyle,
     text_style,
 };
 
@@ -57,33 +61,31 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
         .draw(display);
 }
 
-
-const fn buffer_len(width: usize, height: usize) -> usize {
-    (width + 7) / 8 * height
-}
-
 #[entry]
 fn main() -> ! {
     init_heap();
     let peripherals = Peripherals::take();
 
-    let mut system = peripherals.DPORT.split();
+    let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::max(system.clock_control).freeze();
 
-    let timer = hal::timer::TimerGroup::new(
+    let timer = TimerGroup::new(
         peripherals.TIMG1,
-        &clocks,
-        &mut system.peripheral_clock_control,
+        &clocks
     )
     .timer0;
-let init = initialize(
-    EspWifiInitFor::Wifi,
-    timer,
-    Rng::new(peripherals.RNG),
-    system.radio_clock_control,
-    &clocks,
-)
-.unwrap();
+
+    let rng = Rng::new(peripherals.RNG);
+    let radio_clock_control = system.radio_clock_control;
+
+    let init = initialize(
+        EspWifiInitFor::Wifi,
+        timer,
+        rng,
+        radio_clock_control,
+        &clocks,
+    )
+    .unwrap();
 
     // Create an SPI interface and pins
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
@@ -97,13 +99,12 @@ let init = initialize(
     let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
-    let mut spi = spi::Spi::new_no_cs_no_miso(
+    let mut spi = Spi::new_no_cs_no_miso(
         peripherals.SPI3,
         sclk,
         mosi,
         40u32.MHz(),
-        spi::SpiMode::Mode0,
-        &mut system.peripheral_clock_control,
+        SpiMode::Mode0,
         &clocks,
     );
 
@@ -124,7 +125,7 @@ let init = initialize(
     println!("Initializing");
     // Initialize WiFi
 
-    let (wifi, ..) = peripherals.RADIO.split();
+    let wifi = peripherals.WIFI;
     println!("Allocating sockets");
     let mut socket_set_entries: [SocketStorage; 5] = Default::default();
     println!("Acquiring WiFi interface");
