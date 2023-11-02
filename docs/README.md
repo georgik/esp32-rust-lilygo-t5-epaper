@@ -6,6 +6,9 @@ no_std example for e-ink LilyGoT5 with WiFi support.
 The example connects to an IP address and download text file.
 Then the content of the text is displayed on the screen.
 
+
+![ESP32 Rust LilyGo T5 ePaper](esp32-rust-lilygo-t5-epaper.jpg)
+
 Build and flash:
 
 ```
