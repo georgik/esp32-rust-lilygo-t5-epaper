@@ -1,15 +1,27 @@
 #![no_std]
 #![no_main]
 
+// LIMITATION: Deep sleep does not work with Bare Metal WiFi
+// Use version from main branch instead
+
 extern crate alloc;
-use core::mem::MaybeUninit;
+use core::{
+    mem::MaybeUninit,
+    time::Duration
+};
 use hal::{prelude::*, peripherals::Peripherals,
     spi::{master::Spi, SpiMode},
     clock::ClockControl, Delay, Rng, IO,
-    timer::TimerGroup
+    timer::TimerGroup,
+    rtc_cntl::{
+        get_reset_reason,
+        get_wakeup_cause,
+        sleep::{Ext0WakeupSource, TimerWakeupSource, WakeupLevel},
+        SocResetReason,
+    },
+    Rtc
 };
 
-// use embedded_io::blocking::*;
 use embedded_svc::ipv4::Interface;
 use embedded_svc::wifi::{AccessPointInfo, ClientConfiguration, Configuration, Wifi};
 use embedded_svc::io::{Read, Write};
@@ -78,6 +90,11 @@ fn main() -> ! {
     let rng = Rng::new(peripherals.RNG);
     let radio_clock_control = system.radio_clock_control;
 
+    let reason = get_reset_reason(hal::Cpu::ProCpu).unwrap_or(SocResetReason::ChipPowerOn);
+    println!("reset reason: {:?}", reason);
+    let wake_reason = get_wakeup_cause();
+    println!("wake reason: {:?}", wake_reason);
+
     let init = initialize(
         EspWifiInitFor::Wifi,
         timer,
@@ -97,7 +114,11 @@ fn main() -> ! {
     let sclk = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
     let cs = io.pins.gpio5.into_push_pull_output();
+    let mut wake_up_pin = io.pins.gpio39;
     delay.delay_ms(10u32);
+
+    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
+    let ext0 = Ext0WakeupSource::new(&mut wake_up_pin, WakeupLevel::High);
 
     let mut spi = Spi::new_no_cs_no_miso(
         peripherals.SPI3,
@@ -204,81 +225,80 @@ fn main() -> ! {
 
     let mut socket = wifi_stack.get_socket(&mut rx_buffer, &mut tx_buffer);
 
-    loop {
-        println!("Making HTTP request");
-        socket.work();
-        println!("Opening socket");
 
-        match socket.open(IpAddress::Ipv4(Ipv4Address::new(93, 99, 115, 9)), 80) {
-            Ok(_) => {
-                // Successfully opened the socket
-                // Continue with the next steps
-            },
-            Err(e) => {
-                println!("error{:?}", e);
-                loop{};
-            }
+    println!("Making HTTP request");
+    socket.work();
+    println!("Opening socket");
+
+    match socket.open(IpAddress::Ipv4(Ipv4Address::new(93, 99, 115, 9)), 80) {
+        Ok(_) => {
+            // Successfully opened the socket
+            // Continue with the next steps
+        },
+        Err(e) => {
+            println!("error{:?}", e);
+            loop{};
         }
-
-        println!("Sendig GET request");
-        socket
-            .write(b"GET /info.txt HTTP/1.0\r\nHost: iot.georgik.rocks\r\n\r\n")
-            .unwrap();
-        socket.flush().unwrap();
-
-        let wait_end = current_millis() + 20 * 1000;
-        // A fixed-size buffer to hold the HTTP response.
-        let mut full_response = [0u8; 2048];
-        let mut full_len = 0;
-
-        println!("Reading response");
-
-        // Read the HTTP response into the buffer.
-        loop {
-            if let Ok(len) = socket.read(&mut buffer) {
-                // Copy the newly read bytes into `full_response`.
-                full_response[full_len..full_len + len].copy_from_slice(&buffer[0..len]);
-                full_len += len;
-                println!("Read {} bytes", len);
-            } else {
-                println!("Read error");
-                break;
-            }
-
-            if current_millis() > wait_end {
-                println!("Timeout");
-                break;
-            }
-        }
-
-        // Search for the double CRLF sequence to find the start of the HTTP body.
-        let mut body_start = 0;
-        for i in 0..(full_len - 3) {
-            if &full_response[i..i + 4] == b"\r\n\r\n" {
-                body_start = i + 4;
-                break;
-            }
-        }
-
-        if body_start != 0 {
-            let body = &full_response[body_start..full_len];
-            let to_print = unsafe { core::str::from_utf8_unchecked(body) };
-            draw_text(&mut display_bw, &to_print, 0, 10); // Assuming draw_text function is defined
-            print!("{}", to_print);
-        }
-
-        println!("Closing socket");
-
-        socket.disconnect();
-
-        println!("Updating frame");
-        ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
-        println!("Updating display");
-        ssd1680.display_frame(&mut spi, &mut delay).unwrap();
-
-        println!("Sleeping");
-        // Delay before repeating
-        delay.delay_ms(500000u32);
-        println!("Waking up");
     }
+
+    println!("Sendig GET request");
+    socket
+        .write(b"GET /info.txt HTTP/1.0\r\nHost: iot.georgik.rocks\r\n\r\n")
+        .unwrap();
+    socket.flush().unwrap();
+
+    let wait_end = current_millis() + 20 * 1000;
+    // A fixed-size buffer to hold the HTTP response.
+    let mut full_response = [0u8; 2048];
+    let mut full_len = 0;
+
+    println!("Reading response");
+
+    // Read the HTTP response into the buffer.
+    loop {
+        if let Ok(len) = socket.read(&mut buffer) {
+            // Copy the newly read bytes into `full_response`.
+            full_response[full_len..full_len + len].copy_from_slice(&buffer[0..len]);
+            full_len += len;
+            println!("Read {} bytes", len);
+        } else {
+            println!("Read error");
+            break;
+        }
+
+        if current_millis() > wait_end {
+            println!("Timeout");
+            break;
+        }
+    }
+
+    // Search for the double CRLF sequence to find the start of the HTTP body.
+    let mut body_start = 0;
+    for i in 0..(full_len - 3) {
+        if &full_response[i..i + 4] == b"\r\n\r\n" {
+            body_start = i + 4;
+            break;
+        }
+    }
+
+    if body_start != 0 {
+        let body = &full_response[body_start..full_len];
+        let to_print = unsafe { core::str::from_utf8_unchecked(body) };
+        draw_text(&mut display_bw, &to_print, 0, 10); // Assuming draw_text function is defined
+        print!("{}", to_print);
+    }
+
+    println!("Closing socket");
+
+    socket.disconnect();
+
+    println!("Updating frame");
+    ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+    println!("Updating display");
+    ssd1680.display_frame(&mut spi, &mut delay).unwrap();
+
+    println!("Sleeping");
+    let timer_wakeup_source = TimerWakeupSource::new(Duration::from_secs(5*60));
+    delay.delay_ms(100u32);
+    rtc.sleep_deep(&[&timer_wakeup_source, &ext0], &mut delay);
 }
