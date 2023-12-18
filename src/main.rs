@@ -17,7 +17,7 @@ use embedded_svc::io::{Read, Write};
 use esp_backtrace as _;
 use esp_println::{print, println};
 use esp_wifi::wifi::utils::create_network_interface;
-use esp_wifi::wifi::{WifiError, WifiMode};
+use esp_wifi::wifi::{WifiError, WifiStaDevice};
 use esp_wifi::wifi_interface::WifiStack;
 use esp_wifi::{current_millis, initialize, EspWifiInitFor};
 
@@ -93,19 +93,23 @@ fn main() -> ! {
     let busy = io.pins.gpio4.into_floating_input();
     let rst = io.pins.gpio16.into_push_pull_output();
     let mosi = io.pins.gpio23.into_push_pull_output();
-    // let miso = io.pins.gpio19.into_floating_input();
+    let unused_miso = io.pins.gpio19.into_floating_input();
+    let unused_cs = io.pins.gpio22.into_push_pull_output();
     let sclk = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
     let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
-    let mut spi = Spi::new_no_cs_no_miso(
-        peripherals.SPI3,
-        sclk,
-        mosi,
+    let mut spi = Spi::new(
+        peripherals.SPI2,
         40u32.MHz(),
         SpiMode::Mode0,
         &clocks,
+    ).with_pins(
+        Some(sclk),
+        Some(mosi),
+        Some(unused_miso),
+        Some(unused_cs)
     );
 
 
@@ -123,24 +127,19 @@ fn main() -> ! {
     println!("Drawing text");
 
     println!("Initializing");
-    // Initialize WiFi
 
-    let wifi = peripherals.WIFI;
+    // Initialize WiFi
     println!("Allocating sockets");
     let mut socket_set_entries: [SocketStorage; 5] = Default::default();
     println!("Acquiring WiFi interface");
+    let wifi = peripherals.WIFI;
     let (iface, device, mut controller, sockets) =
-        match create_network_interface(&init, wifi, WifiMode::Sta, &mut socket_set_entries)
-        {
-            Ok(val) => val,
-            Err(_) => {
-                let err_msg = "Network init failed";
-                print!("{}", err_msg);
-                loop {}
-            }
-    };
+        create_network_interface(&init, wifi, WifiStaDevice, &mut socket_set_entries).unwrap();
+
     println!("Creating WifiStack");
     let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
+
+    // let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
     println!("Creating ClientConfiguration");
     let client_config = Configuration::Client(ClientConfiguration {
         ssid: SSID.into(),

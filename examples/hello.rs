@@ -8,10 +8,8 @@ use esp_println::println;
 use hal::{clock::ClockControl,
     peripherals::Peripherals,
     prelude::*,
-    timer::TimerGroup,
-    Rtc,
     IO,
-    spi,
+    spi::{master::Spi, SpiMode},
     Delay
 };
 use log::info;
@@ -52,26 +50,8 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
 fn main() -> ! {
     init_heap();
     let peripherals = Peripherals::take();
-    let mut system = peripherals.DPORT.split();
+    let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-
-    // Disable the RTC and TIMG watchdog timers
-    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
-    let timer_group0 = TimerGroup::new(
-        peripherals.TIMG0,
-        &clocks,
-        &mut system.peripheral_clock_control,
-    );
-    let mut wdt0 = timer_group0.wdt;
-    let timer_group1 = TimerGroup::new(
-        peripherals.TIMG1,
-        &clocks,
-        &mut system.peripheral_clock_control,
-    );
-    let mut wdt1 = timer_group1.wdt;
-    rtc.rwdt.disable();
-    wdt0.disable();
-    wdt1.disable();
 
     let mut delay = Delay::new(&clocks);
     // setup logger
@@ -86,20 +66,25 @@ fn main() -> ! {
     let busy = io.pins.gpio4.into_floating_input();
     let rst = io.pins.gpio16.into_push_pull_output();
     let mosi = io.pins.gpio23.into_push_pull_output();
+    let unused_miso = io.pins.gpio19.into_floating_input();
+    let unused_cs = io.pins.gpio22.into_push_pull_output();
     let sclk = io.pins.gpio18.into_push_pull_output();
     let dc = io.pins.gpio17.into_push_pull_output();
     let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
-    let mut spi = spi::Spi::new_no_cs_no_miso(
-        peripherals.SPI3,
-        sclk,
-        mosi,
-        4u32.MHz(),
-        spi::SpiMode::Mode0,
-        &mut system.peripheral_clock_control,
+    let mut spi = Spi::new(
+        peripherals.SPI2,
+        40u32.MHz(),
+        SpiMode::Mode0,
         &clocks,
+    ).with_pins(
+        Some(sclk),
+        Some(mosi),
+        Some(unused_miso),
+        Some(unused_cs)
     );
+
 
     let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
 
