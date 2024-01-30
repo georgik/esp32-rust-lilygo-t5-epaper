@@ -11,6 +11,7 @@ use hal::{
     timer::TimerGroup,
     Delay, Rng, IO,
 };
+use hal::clock::CpuClock;
 
 // use embedded_io::blocking::*;
 use embedded_svc::io::{Read, Write};
@@ -73,7 +74,7 @@ fn main() -> ! {
     let peripherals = Peripherals::take();
 
     let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::max(system.clock_control).freeze();
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock240MHz).freeze();
 
     let timer = TimerGroup::new(peripherals.TIMG1, &clocks).timer0;
 
@@ -169,29 +170,20 @@ fn main() -> ! {
                 }
             }
             Err(err) => {
-                println!("WiFi Error - {:?} - delay 1000 ms", err);
-                delay.delay_ms(1000u32);
-                controller.connect().unwrap();
+                println!("{:?}", err);
+                loop {}
             }
         }
     }
-    println!("Is connected: {:?}", controller.is_connected());
+    println!("{:?}", controller.is_connected());
 
     // wait for getting an ip address
     println!("Wait to get an ip address");
     loop {
         wifi_stack.work();
+
         if wifi_stack.is_iface_up() {
             println!("got ip {:?}", wifi_stack.get_ip_info());
-            use core::fmt::Write as FmtWrite;
-            let mut ip_addr: heapless::String<256> = heapless::String::new();
-            let bytes = wifi_stack.get_ip_info().unwrap().ip.octets();
-            write!(
-                ip_addr,
-                "{}.{}.{}.{}",
-                bytes[0], bytes[1], bytes[2], bytes[3]
-            )
-            .unwrap();
             break;
         }
     }
