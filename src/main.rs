@@ -3,16 +3,19 @@
 
 extern crate alloc;
 use core::mem::MaybeUninit;
-use hal::{prelude::*, peripherals::Peripherals,
+use hal::{
+    clock::ClockControl,
+    peripherals::Peripherals,
+    prelude::*,
     spi::{master::Spi, SpiMode},
-    clock::ClockControl, Delay, Rng, IO,
-    timer::TimerGroup
+    timer::TimerGroup,
+    Delay, Rng, IO,
 };
 
 // use embedded_io::blocking::*;
+use embedded_svc::io::{Read, Write};
 use embedded_svc::ipv4::Interface;
 use embedded_svc::wifi::{AccessPointInfo, ClientConfiguration, Configuration, Wifi};
-use embedded_svc::io::{Read, Write};
 
 use esp_backtrace as _;
 use esp_println::{print, println};
@@ -25,16 +28,14 @@ use smoltcp::iface::SocketStorage;
 use smoltcp::wire::IpAddress;
 use smoltcp::wire::Ipv4Address;
 
-use embedded_hal::blocking::delay::DelayMs;
-
 use embedded_graphics::{
     fonts::{Font24x32, Text},
     prelude::*,
     text_style,
 };
 
-use ssd1680::prelude::*;
 use ssd1680::color::{Black, White};
+use ssd1680::prelude::*;
 
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
@@ -63,17 +64,18 @@ fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
 
 #[entry]
 fn main() -> ! {
+    let mut rx_buffer = [0u8; 1536];
+    let mut tx_buffer = [0u8; 1536];
+    let mut buffer = [0u8; 512];
+    let mut socket_set_entries: [SocketStorage; 5] = Default::default();
+
     init_heap();
     let peripherals = Peripherals::take();
 
     let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::max(system.clock_control).freeze();
 
-    let timer = TimerGroup::new(
-        peripherals.TIMG1,
-        &clocks
-    )
-    .timer0;
+    let timer = TimerGroup::new(peripherals.TIMG1, &clocks).timer0;
 
     let rng = Rng::new(peripherals.RNG);
     let radio_clock_control = system.radio_clock_control;
@@ -100,18 +102,12 @@ fn main() -> ! {
     let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
-    let mut spi = Spi::new(
-        peripherals.SPI2,
-        40u32.MHz(),
-        SpiMode::Mode0,
-        &clocks,
-    ).with_pins(
+    let mut spi = Spi::new(peripherals.SPI2, 40u32.MHz(), SpiMode::Mode0, &clocks).with_pins(
         Some(sclk),
         Some(mosi),
         Some(unused_miso),
-        Some(unused_cs)
+        Some(unused_cs),
     );
-
 
     let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
     // Initialize ePaper display
@@ -129,8 +125,6 @@ fn main() -> ! {
     println!("Initializing");
 
     // Initialize WiFi
-    println!("Allocating sockets");
-    let mut socket_set_entries: [SocketStorage; 5] = Default::default();
     println!("Acquiring WiFi interface");
     let wifi = peripherals.WIFI;
     let (iface, device, mut controller, sockets) =
@@ -142,8 +136,8 @@ fn main() -> ! {
     // let wifi_stack = WifiStack::new(iface, device, sockets, current_millis);
     println!("Creating ClientConfiguration");
     let client_config = Configuration::Client(ClientConfiguration {
-        ssid: SSID.into(),
-        password: PASSWORD.into(),
+        ssid: SSID.try_into().unwrap(),
+        password: PASSWORD.try_into().unwrap(),
         ..Default::default()
     });
     println!("Setting configuration");
@@ -187,19 +181,22 @@ fn main() -> ! {
     println!("Wait to get an ip address");
     loop {
         wifi_stack.work();
-
         if wifi_stack.is_iface_up() {
             println!("got ip {:?}", wifi_stack.get_ip_info());
-            delay.delay_ms(500u32);
+            use core::fmt::Write as FmtWrite;
+            let mut ip_addr: heapless::String<256> = heapless::String::new();
+            let bytes = wifi_stack.get_ip_info().unwrap().ip.octets();
+            write!(
+                ip_addr,
+                "{}.{}.{}.{}",
+                bytes[0], bytes[1], bytes[2], bytes[3]
+            )
+            .unwrap();
             break;
         }
     }
 
     println!("Start busy loop on main");
-
-    let mut rx_buffer = [0u8; 1536];
-    let mut tx_buffer = [0u8; 1536];
-    let mut buffer = [0u8; 512];
 
     let mut socket = wifi_stack.get_socket(&mut rx_buffer, &mut tx_buffer);
 
@@ -212,10 +209,10 @@ fn main() -> ! {
             Ok(_) => {
                 // Successfully opened the socket
                 // Continue with the next steps
-            },
+            }
             Err(e) => {
                 println!("error{:?}", e);
-                loop{};
+                loop {}
             }
         }
 
@@ -271,7 +268,9 @@ fn main() -> ! {
         socket.disconnect();
 
         println!("Updating frame");
-        ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+        ssd1680
+            .update_bw_frame(&mut spi, display_bw.buffer())
+            .unwrap();
         println!("Updating display");
         ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 

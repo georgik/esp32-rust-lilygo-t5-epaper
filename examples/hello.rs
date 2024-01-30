@@ -5,18 +5,17 @@ extern crate alloc;
 use core::mem::MaybeUninit;
 use esp_backtrace as _;
 use esp_println::println;
-use hal::{clock::ClockControl,
+use hal::{
+    clock::ClockControl,
     peripherals::Peripherals,
     prelude::*,
-    IO,
     spi::{master::Spi, SpiMode},
-    Delay
+    Delay, IO,
 };
 use log::info;
 
-use ssd1680::prelude::*;
 use ssd1680::color::{Black, White};
-
+use ssd1680::prelude::*;
 
 use embedded_graphics::{
     fonts::{Font6x8, Text},
@@ -73,18 +72,12 @@ fn main() -> ! {
     let cs = io.pins.gpio5.into_push_pull_output();
     delay.delay_ms(10u32);
 
-    let mut spi = Spi::new(
-        peripherals.SPI2,
-        40u32.MHz(),
-        SpiMode::Mode0,
-        &clocks,
-    ).with_pins(
+    let mut spi = Spi::new(peripherals.SPI2, 40u32.MHz(), SpiMode::Mode0, &clocks).with_pins(
         Some(sclk),
         Some(mosi),
         Some(unused_miso),
-        Some(unused_cs)
+        Some(unused_cs),
     );
-
 
     let mut ssd1680 = Ssd1680::new(&mut spi, cs, busy, dc, rst, &mut delay).unwrap();
 
@@ -98,7 +91,9 @@ fn main() -> ! {
     draw_text(&mut display_bw, "Hello ESP-RS!", 25, 25);
     println!("Hello ESP-RS!");
 
-    ssd1680.update_bw_frame(&mut spi, display_bw.buffer()).unwrap();
+    ssd1680
+        .update_bw_frame(&mut spi, display_bw.buffer())
+        .unwrap();
     ssd1680.display_frame(&mut spi, &mut delay).unwrap();
 
     loop {}

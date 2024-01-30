@@ -2,7 +2,7 @@
 
 ## Main example with WiFi support
 
-no_std example for e-ink LilyGoT5 with WiFi support.
+no_std example for e-ink LilyGoT5 with Wi-Fi support.
 The example connects to an IP address and download text file.
 Then the content of the text is displayed on the screen.
 
